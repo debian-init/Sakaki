@@ -1,6 +1,16 @@
 {
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.9",
+    "open": "^10.1.0",
+    "pino": "^9.5.0",
     "wa-sticker-formatter": "^4.4.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  },
+  "scripts": {
+    "start": "ts-node main.ts"
   }
 }
