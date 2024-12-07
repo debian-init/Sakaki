@@ -3,6 +3,7 @@
     "@whiskeysockets/baileys": "^6.7.9",
     "open": "^10.1.0",
     "pino": "^9.5.0",
+    "qrcode-terminal": "^0.12.0",
     "wa-sticker-formatter": "^4.4.4"
   },
   "devDependencies": {
@@ -11,6 +12,7 @@
     "typescript": "^5.7.2"
   },
   "scripts": {
+    "prestart": "npm install",
     "start": "ts-node main.ts"
   }
 }

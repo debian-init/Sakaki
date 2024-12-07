@@ -1,13 +1,14 @@
 import { Boom } from '@hapi/boom'
 import NodeCache from 'node-cache'
 import readline from 'readline'
-import makeWAsakakiet, { AnyMessageContent, BinaryInfo, delay, DisconnectReason, downloadAndProcessHistorySyncNotification, encodeWAM, fetchLatestBaileysVersion, getAggregateVotesInPollMessage, getHistoryMsg, isJidNewsletter, makeCacheableSignalKeyStore, makeInMemoryStore, proto, useMultiFileAuthState, WAMessageContent, WAMessageKey } from '../src'
-//import MAIN_LOGGER from '../src/Utils/logger'
+import { Sticker, createSticker, StickerTypes } from 'wa-sticker-formatter'
+import makeWAsakakiet, { AnyMessageContent, BinaryInfo, delay, DisconnectReason, downloadAndProcessHistorySyncNotification, encodeWAM, fetchLatestBaileysVersion, getAggregateVotesInPollMessage, getHistoryMsg, isJidNewsletter, makeCacheableSignalKeyStore, makeInMemoryStore, proto, useMultiFileAuthState, WAMessageContent, WAMessageKey, downloadMediaMessage } from '@whiskeysockets/baileys'
 import open from 'open'
 import fs from 'fs'
 import P from 'pino'
+import { buffer } from 'stream/consumers'
 
-const logger = P({ timestamp: () => `,"time":"${new Date().toJSON()}"` }, P.destination('./Main/Private/Lib/LoggerPino/wa-logs.txt'))
+const logger: any = P({ timestamp: () => `,"time":"${new Date().toJSON()}"` }, P.destination('./Main/Private/Lib/LoggerPino/wa-logs.txt'))
 logger.level = 'trace'
 
 const useStore = !process.argv.includes('--no-store')
@@ -30,11 +31,13 @@ const store = useStore ? makeInMemoryStore({ logger }) : undefined
 store?.readFromFile('./Main/Private/Lib/StoreBaileys/baileys_store_multi.json')
 // save every 10s
 setInterval(() => {
-	store?.writeToFile('./baileys_store_multi.json')
+	store?.writeToFile('./Main/Private/Lib/StoreBaileys/baileys_store_multi.json')
 }, 10_000)
 
-// start a connection
-	const { state, saveCreds } = await useMultiFileAuthState('baileys_auth_info')
+
+async function Sakaki() {
+	// start a connection
+	const { state, saveCreds } = await useMultiFileAuthState('./Main/Private/Lib/ConectionBaileys')
 	// fetch latest version of WA Web
 	const { version, isLatest } = await fetchLatestBaileysVersion()
 	console.log(`using WA v${version.join('.')}, isLatest: ${isLatest}`)
@@ -67,7 +70,7 @@ setInterval(() => {
 		console.log(`Pairing code: ${code}`)
 	}
 
-	const sendMessageWTyping = async(msg: AnyMessageContent, jid: string) => {
+	const sendMessageWTyping = async (msg: AnyMessageContent, jid: string) => {
 		await sakaki.presenceSubscribe(jid)
 		await delay(500)
 
@@ -83,21 +86,21 @@ setInterval(() => {
 	// efficiently in a batch
 	sakaki.ev.process(
 		// events is a map for event name => event data
-		async(events:any) => {
+		async (events: any) => {
 			// something about the connection changed
 			// maybe it closed, or we received all offline message or connection opened
-			if(events['connection.update']) {
+			if (events['connection.update']) {
 				const update = events['connection.update']
 				const { connection, lastDisconnect } = update
-				if(connection === 'close') {
+				if (connection === 'close') {
 					// reconnect if not logged out
-					if((lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut) {
+					if ((lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut) {
 						Sakaki()
 					} else {
 						console.log('Connection closed. You are logged out.')
 					}
 				}
-				
+
 				// WARNING: THIS WILL SEND A WAM EXAMPLE AND THIS IS A ****CAPTURED MESSAGE.****
 				// DO NOT ACTUALLY ENABLE THIS UNLESS YOU MODIFIED THE FILE.JSON!!!!!
 				// THE ANALYTICS IN THE FILE ARE OLD. DO NOT USE THEM.
@@ -106,7 +109,7 @@ setInterval(() => {
 				// THE FIRST EVENT CONTAINS THE CONSTANT GLOBALS, EXCEPT THE seqenceNumber(in the event) and commitTime
 				// THIS INCLUDES STUFF LIKE ocVersion WHICH IS CRUCIAL FOR THE PREVENTION OF THE WARNING
 				const sendWAMExample = false;
-				if(connection === 'open' && sendWAMExample) {
+				if (connection === 'open' && sendWAMExample) {
 					/// sending WAM EXAMPLE
 					const {
 						header: {
@@ -123,7 +126,7 @@ setInterval(() => {
 					})
 
 					const buffer = encodeWAM(binaryInfo);
-					
+
 					const result = await sakaki.sendWAMBuffer(buffer)
 					console.log(result)
 				}
@@ -132,25 +135,25 @@ setInterval(() => {
 			}
 
 			// credentials updated -- save them
-			if(events['creds.update']) {
+			if (events['creds.update']) {
 				await saveCreds()
 			}
 
-			if(events['labels.association']) {
+			if (events['labels.association']) {
 				console.log(events['labels.association'])
 			}
 
 
-			if(events['labels.edit']) {
+			if (events['labels.edit']) {
 				console.log(events['labels.edit'])
 			}
 
-			if(events.call) {
+			if (events.call) {
 				console.log('recv call event', events.call)
 			}
 
 			// history received
-			if(events['messaging-history.set']) {
+			if (events['messaging-history.set']) {
 				const { chats, contacts, messages, isLatest, progress, syncType } = events['messaging-history.set']
 				if (syncType === proto.HistorySync.HistorySyncType.ON_DEMAND) {
 					console.log('received on-demand history sync, messages=', messages)
@@ -159,88 +162,47 @@ setInterval(() => {
 			}
 
 			// received a new message
-			if(events['messages.upsert']) {
+			if (events['messages.upsert']) {
 				const upsert = events['messages.upsert']
 				console.log('recv messages ', JSON.stringify(upsert, undefined, 2))
+				console.log("replying to", upsert.messages[0].key.remoteJid);
+				//Predefinições
+				const messages = upsert.messages[0];
+				const from = messages.key.remoteJid;
+				const command = messages.message?.conversation || messages.message?.extendedTextMessage?.text
+				
+					switch (command) {
+						case 'menu': case 'start': case 'sakaki':
+							await sakaki.sendMessage(from, {
+								image: fs.readFileSync("./Main/Public/Lib/Images/Menus/main.png"),
+								caption: "hello!",
+							})
+							break;
 
-				if(upsert.type === 'notify') {
-					for (const msg of upsert.messages) {
-						//TODO: More built-in implementation of this
-						/* if (
-							msg.message?.protocolMessage?.type ===
-							proto.Message.ProtocolMessage.Type.HISTORY_SYNC_NOTIFICATION
-						  ) {
-							const historySyncNotification = getHistoryMsg(msg.message)
-							if (
-							  historySyncNotification?.syncType ==
-							  proto.HistorySync.HistorySyncType.ON_DEMAND
-							) {
-							  const { messages } =
-								await downloadAndProcessHistorySyncNotification(
-								  historySyncNotification,
-								  {}
-								)
+						//Grup Functions
+						case 'grupimg':
+							// for low res picture const ppUrl = await sakaki.profilePictureUrl("xyz@g.us")console.log("download profile picture from: " + ppUrl)
+							// for high res picture
+							const ppUrl = await sakaki.profilePictureUrl("xyz@g.us", 'image')
+							break;
 
-								
-								const chatId = onDemandMap.get(
-									historySyncNotification!.peerDataRequestSessionId!
-								)
-								
-								console.log(messages)
 
-							  onDemandMap.delete(
-								historySyncNotification!.peerDataRequestSessionId!
-							  )
 
-							  /*
-								// 50 messages is the limit imposed by whatsapp
-								//TODO: Add ratelimit of 7200 seconds
-								//TODO: Max retries 10
-								const messageId = await sakaki.fetchMessageHistory(
-									50,
-									oldestMessageKey,
-									oldestMessageTimestamp
-								)
-								onDemandMap.set(messageId, chatId)
-							}
-						  } */
-
-						if (msg.message?.conversation || msg.message?.extendedTextMessage?.text) {
-							const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text
-							if (text == "requestPlaceholder" && !upsert.requestId) {
-								const messageId = await sakaki.requestPlaceholderResend(msg.key) 
-								console.log('requested placeholder resync, id=', messageId)
-							} else if (upsert.requestId) {
-								console.log('Message received from phone, id=', upsert.requestId, msg)
-							}
-
-							// go to an old chat and send this
-							if (text == "onDemandHistSync") {
-								const messageId = await sakaki.fetchMessageHistory(50, msg.key, msg.messageTimestamp!) 
-								console.log('requested on-demand sync, id=', messageId)
-							}
-						}
-
-						if(!msg.key.fromMe && doReplies && !isJidNewsletter(msg.key?.remoteJid!)) {
-
-							console.log('replying to', msg.key.remoteJid)
-							await sakaki!.readMessages([msg.key])
-							await sendMessageWTyping({ text: 'Hello there!' }, msg.key.remoteJid!)
-						}
 					}
-				}
+				
 			}
 
+
 			// messages updated like status delivered, message deleted etc.
-			if(events['messages.update']) {
+			if (events['messages.update']) {
 				console.log(
 					JSON.stringify(events['messages.update'], undefined, 2)
 				)
 
-				for(const { key, update } of events['messages.update']) {
-					if(update.pollUpdates) {
+				for (const { key, update } of events['messages.update']) {
+					if (update.pollUpdates) {
 						const pollCreation = await getMessage(key)
-						if(pollCreation) {
+						if (pollCreation) {
 							console.log(
 								'got poll update, aggregation: ',
 								getAggregateVotesInPollMessage({
@@ -253,36 +215,36 @@ setInterval(() => {
 				}
 			}
 
-			if(events['message-receipt.update']) {
+			if (events['message-receipt.update']) {
 				console.log(events['message-receipt.update'])
 			}
 
-			if(events['messages.reaction']) {
+			if (events['messages.reaction']) {
 				console.log(events['messages.reaction'])
 			}
 
-			if(events['presence.update']) {
+			if (events['presence.update']) {
 				console.log(events['presence.update'])
 			}
 
-			if(events['chats.update']) {
+			if (events['chats.update']) {
 				console.log(events['chats.update'])
 			}
 
-			if(events['contacts.update']) {
-				for(const contact of events['contacts.update']) {
-					if(typeof contact.imgUrl !== 'undefined') {
+			if (events['contacts.update']) {
+				for (const contact of events['contacts.update']) {
+					if (typeof contact.imgUrl !== 'undefined') {
 						const newUrl = contact.imgUrl === null
 							? null
 							: await sakaki!.profilePictureUrl(contact.id!).catch(() => null)
 						console.log(
-							`contact ${contact.id} has a new profile pic: ${newUrl}`,
+							`contact ${contact.id} has a new profile pic: ${newUrl} `,
 						)
 					}
 				}
 			}
 
-			if(events['chats.delete']) {
+			if (events['chats.delete']) {
 				console.log('chats deleted ', events['chats.delete'])
 			}
 		}
@@ -291,7 +253,7 @@ setInterval(() => {
 	return sakaki
 
 	async function getMessage(key: WAMessageKey): Promise<WAMessageContent | undefined> {
-		if(store) {
+		if (store) {
 			const msg = await store.loadMessage(key.remoteJid!, key.id!)
 			return msg?.message || undefined
 		}
@@ -301,4 +263,4 @@ setInterval(() => {
 	}
 }
 
-Sakaki()
+Sakaki();
