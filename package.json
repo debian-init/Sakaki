@@ -9,4 +9,8 @@
   "devDependencies": {
     "@types/node": "^22.10.1"
   }
+  "scripts": {
+    "install packeges": "npm install",
+    "start": "ts-node main.ts"
+  }
 }
