@@ -1,11 +1,11 @@
-const { apiId, apiHash, Session, } = require ('./config.json'); 
+const { apiId, apiHash, Session, } = require('./config.json');
 const { TelegramClient, Api, } = require("telegram");
 const { StringSession } = require("telegram/sessions");
 const input = require("input"); // npm i input
-const stringSession = new StringSession(Session); 
+const stringSession = new StringSession(Session);
 // fill this later with the value from session.save()
 
-async function Start () {
+async function Start() {
   console.log("Loading interactive example...");
   const client = new TelegramClient(stringSession, apiId, apiHash, {
     connectionRetries: 5,
@@ -22,10 +22,25 @@ async function Start () {
   //console.log(client.session.save()); // Save this string to avoid logging in again
   console.log(client);
 
+  const event = client.event;
+  const message = event.message;
+  // prints sender id
+  const sender = await message.getSender();
+  // Checks if it's a private message (from user or bot)
+  if (event.isPrivate) {
+    // read message
+    switch (message.text) {
+      case 'start': case 'menu':
+        await client.sendMessage(sender, {
+          message: `hi your id is ${message.senderId}`
+        });
+    }
 
-const messages = await client.getMessages(chat, {ids: undefined });
-const messagesData = messages[0];
-console.log(messages);
-  
-  
+    console.log(message.senderId);
+    const chat = 'me';
+    const messages = await client.getMessages(chat, { ids: undefined });
+    const messagesData = messages[0];
+    console.log(messages);
+  }
+
 } Start();
