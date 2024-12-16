@@ -1,12 +1,13 @@
 {
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.9",
+    "mercadopago": "^2.1.0",
     "open": "^10.1.0",
     "pino": "^9.5.0",
     "qrcode-terminal": "^0.12.0",
     "sequelize": "^6.37.5",
     "sqlite3": "^5.1.7",
-    "wa-sticker-formatter": "^4.4.4"
+    "wa-sticker-formatter": "^1.6.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.1",
@@ -15,6 +16,6 @@
   },
   "scripts": {
     "prestart": "npm install",
-    "start": "ts-node main.ts"
+    "start": "ts-node start.ts"
   }
 }
