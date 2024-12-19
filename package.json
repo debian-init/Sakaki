@@ -7,9 +7,9 @@
     "dotenv": "^16.4.5",
     "sequelize": "^6.37.5",
     "sqlite3": "^5.1.7"
-  }
+  },
   "scripts": {
-    "install packeges": "npm install",
+    "packeges": "npm install",
     "start": "ts-node main.ts"
   }
 }
