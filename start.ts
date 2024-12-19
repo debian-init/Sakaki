@@ -1,9 +1,8 @@
-import Sakaki from './sakaki';
+import { text } from 'stream/consumers';
+import Client from './Main/Class/Client/Client';
 
-async function main() {
-    const bot = new Sakaki();
-    await bot.initialize();
-    console.log('Sakaki bot is ready!');
-}
+async function Main() {
+    const sakaki = new Client();
+    await sakaki.Start();
 
-main();
+} Main();
